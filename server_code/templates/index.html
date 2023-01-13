@@ -1,0 +1,444 @@
+{% extends "bootstrap/base.html" %}
+{% block title %}Flask-MQTT example{% endblock %}
+
+{% block styles %}
+{{ super() }}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.5.0/socket.io.dev.js"></script>
+<script type="text/javascript" charset="utf-8">
+
+  $(document).ready(function () {
+    var socket = io();
+    /*
+    socket.send(JSON.stringify({test:'test123'}));
+    .connect('http://' + document.domain + ':' + location.port);*/
+
+    /* Onload -> subscribe to channels */
+    var topics = ['security', 'lock', 'temphumid', 'light'];
+    socket.open();
+
+    socket.on('connect', () => {
+      topics.forEach((t) => {
+        var data = JSON.stringify({
+          topic: t,
+          qos: 0,
+        });
+        socket.emit('subscribe', data, (data) => {
+          console.log('Successfully subscribed');
+        });
+      });
+    });
+
+    /* Security buttons */
+    $('#security').on('click', function (e) {
+      var selectedOption = e.target.id;
+      socket.emit('publish', JSON.stringify({
+        topic: 'lock',
+        message: selectedOption,
+      }), (data) => {
+        console.log('Security state updated!');
+      });
+    });
+
+    $('#tripAlarm').on('click', function (e) {
+      socket.emit('publish', JSON.stringify({
+        topic: 'lock',
+        message: 'TRIPALARM',
+        qos: 0,
+      }), (res) => {
+        console.log('Alarm tripped');
+      });
+    });
+
+    /* Real current state of security */
+    socket.on('security', (data) => {
+      const decoded = JSON.parse(data);
+
+      /* Pairing mode -> Display code*/
+      if (decoded.state == "PAIRING") {
+        console.log(decoded.code);
+        /* Show */
+        $('#bleDiv').removeClass('hide');
+        $('#blePin').text(decoded.code);
+      }
+      else if (decoded.state == "TRIPPED") {
+        $('#currentTrip').removeClass('hide');
+      }
+      /* Security is off, update display */
+      else if (decoded.state == "UNACTIVE") {
+        $('#currentSecurity').removeClass('label-success');
+        $('#currentSecurity').addClass('label-danger');
+        $('#currentSecurity').text('OFF');
+      }
+      else if (decoded.state == "ACTIVE") {
+        $('#currentSecurity').removeClass('label-danger');
+        $('#currentSecurity').addClass('label-success');
+        $('#currentSecurity').text('ON');
+      }
+    });
+
+    socket.on('light', (data) => {
+      /* Light is on */
+      if (data == "off") {
+        $('#currentLight').removeClass('label-success');
+        $('#currentLight').addClass('label-danger');
+        $('#currentLight').text('OFF');
+      }
+      /* Light is off */
+      else if (data == "on") {
+        $('#currentLight').removeClass('label-danger');
+        $('#currentLight').addClass('label-success');
+        $('#currentLight').text('ON');
+      }
+    });
+
+
+    $('#expectedHumidity').on('change', (e) => {
+      const val = `{"expected_humidity": "${e.target.value}"}`
+
+      socket.emit('publish', JSON.stringify({
+        topic: 'temphumid',
+        message: val,
+      }), (data) => {
+        console.log('Security state updated!');
+      });
+    });
+
+    $('#enableHumidity').on('click', (e) => {
+      var valval = 0
+      if (e.target.id == "ENABLEHUMIDITY") {
+      valval = 1
+      }
+      const val = `{"enable_humidity": "${valval}"}`
+
+      socket.emit('publish', JSON.stringify({
+        topic: 'temphumid',
+        message: val,
+        qos: 0,
+      }), () => {
+        console.log("humidity misschien enabled");
+      });
+    });
+
+    /* Handle temperature and humidity */
+    /* Live Charts */
+    var chartTemperature = document.getElementById('chartTemperature');
+    var chartHumidity = document.getElementById('chartHumidity');
+
+    var times = [];
+    var temperatures = [];
+    var humidities = [];
+
+    var chartTemperature = new Chart(document.getElementById('chartTemperature'), {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: "Temperature",
+            borderColor: ['#FF0000'],
+            fill: true,
+            data: temperatures
+          }
+        ]
+      },
+      options: {
+        title: {
+          display: true,
+          text: 'Temperature'
+        },
+        hover: {
+          mode: 'index',
+          intersect: true
+        }
+      }
+    });;
+    var chartHumidity = new Chart(document.getElementById('chartHumidity'), {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: "Humidity",
+            fill: true,
+            data: humidities
+          }
+        ]
+      },
+      options: {
+        title: {
+          display: true,
+          text: 'Humidity'
+        },
+        hover: {
+          mode: 'index',
+          intersect: true
+        }
+      }
+    });;
+
+    socket.on('temphumid', (data) => {
+      const decoded = JSON.parse(data);
+
+      chartTemperature.data.labels.push(Date.now());
+      if (chartTemperature.data.labels.length > 10) {
+        chartTemperature.data.labels.shift();
+      }
+      chartTemperature.data.datasets.forEach((temp) => {
+        if (temp.length > 10) {
+          temp.shift();
+        }
+        temp.data.push(decoded['temperature']);
+      })
+
+      chartHumidity.data.labels.push(Date.now());
+      if (chartHumidity.data.labels.length > 10) {
+        chartHumidity.data.labels.shift();
+      }
+      chartHumidity.data.datasets.forEach((hum) => {
+        if (hum.length > 10) {
+          hum.shift();
+        }
+        hum.data.push(decoded['humidity']);
+      })
+
+      /* Update charts */
+      chartTemperature.update();
+      chartHumidity.update();
+
+    });
+  });
+</script>
+<style>
+  /* Togglable buttons */
+  .btn-default.btn-on.active {
+    background-color: #5BB75B;
+    color: white;
+  }
+
+  .btn-default.btn-off.active {
+    background-color: #DA4F49;
+    color: white;
+  }
+
+  /*Callouts*/
+  .callout {
+    margin: .5rem 0;
+    padding: .5rem 1rem;
+    background-color: lightpink;
+    border: 1px solid #eee;
+    border-left-width: 5px;
+    border-radius: 3px;
+  }
+
+  .callout-warning {
+    border-left-color: #DA4F49;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-inverse navbar-fixed-top">
+  <div class="container">
+    <div class="navbar-header">P
+      <div class="navbar-brand">
+        Home Automation Project
+      </div>
+    </div>
+    <div class="navbar-text navbar-right">
+      IOT_4482
+    </div>
+  </div>
+</nav>
+<div class="container" role="main" style="margin-top: 60px">
+  <div class="row">
+    <div class="alert alert-danger hide" role="alert" id="currentTrip">
+      <strong>Alarm tripped!</strong>
+    </div>
+    <div class="col-md-6">
+
+      <!-- 
+        Security 
+      -->
+      <div class="form-group">
+        <label class="control-label col-xs-4" for="security">Security: </label>
+        <div class="btn-group" id="security" data-toggle="buttons">
+          <label class="btn btn-default btn-on btn-xs active" id="ACTIVATEALARM">
+            <input type="radio" value="ACTIVATEALARM" name="multifeatured_module[module_id][status]"
+              checked="checked">ON</label>
+          <label class="btn btn-default btn-off btn-xs " id="DEACTIVATEALARM">
+            <input type="radio" value="DEACTIVATEALARM" name="multifeatured_module[module_id][status]">OFF</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="control-label col-xs-4" for="tripAlarm">Trip alarm: </label>
+        <button class="btn btn-danger" id="tripAlarm">Trip</button>
+      </div>
+
+      <!--
+        Bluetooth
+      -->
+      <div class="form-group hide" id="bleDiv">
+        <label class="control-label col-xs-4" for="blePin">Bluetooth PIN: </label>
+        <span class="label label-default" id="blePin">000000</span>
+      </div>
+
+      <!--
+        Lights
+      -->
+      <div class="form-group">
+        <label class="control-label col-xs-4" for="currentSecurity">Current Security State: </label>
+        <span class="label label-success" id="currentSecurity">ON</span>
+      </div>
+      <div class="form-group">
+        <label class="control-label col-xs-4" for="currentLight">Current Light State: </label>
+        <span class="label label-success" id="currentLight">ON</span>
+      </div>
+
+      <!-- 
+        Humidity en Temperature 
+      -->
+      <form class="form-horizontal" method="dialog" class="">
+        <div class="form-group">
+          <label class="control-label col-xs-4" for="expectedHumidity">Expected Humidity: </label>
+          <input class="form-control" type="range" id="expectedHumidity" min="0" max="100">
+        </div>
+        <div class="form-group">
+          <label class="control-label col-xs-4" for="enableHumidity">Enable Humidity: </label>
+          <div class="btn-group" id="enableHumidity" data-toggle="buttons">
+            <label class="btn btn-default btn-on btn-xs active" id="ENABLEHUMIDITY">
+              <input type="radio" value="ENABLEHUMIDITY" name="multifeatured_module[module_id][status]"
+                checked="checked">ON</label>
+            <label class="btn btn-default btn-off btn-xs " id="DISABLEHUMIDITY">
+              <input type="radio" value="DISABLEHUMIDITY" name="multifeatured_module[module_id][status]">OFF</label>
+          </div>
+        </div>
+      </form>
+
+    </div>
+    <div class="col-md-6">
+      <div class="callout callout-warning rounded">
+        <h4>Warning</h4>
+        <p>This instantly modifies the security state. Be careful with these buttons.</p>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-4">
+      <canvas id="chartTemperature" width="300" height="300"></canvas>
+    </div>
+    <div class="col-md-4">
+      <canvas id="chartHumidity" width="300" height="300"></canvas>
+    </div>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container">
+    <p class="text-muted">
+      Massimo Giardina - Tibo Poncelet - Ismael Warnants
+    </p>
+  </div>
+</footer>
+<!--
+<div class="row">
+  <div class="col-xs-6">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Publish MQTT Message</h3>
+      </div>
+      <div class="panel-body">
+        <div class="col-xs-12">
+          <div class="row">
+            <div class="form-horizontal">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="switchAlarm">
+                <label class="form-check-label" for="switchAlarm">Current alarm state</label>
+              </div>
+              <div class="form-group">
+                <label class="control-label col-xs-4">Topic: </label>
+                <div class="col-xs-8">
+                  <input id="topic" class="form-control">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="control-label col-xs-4">Message: </label>
+                <div class="col-xs-8">
+                  <input id="message" class="form-control">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="control-label col-xs-4">Qos: </label>
+                <div class="col-xs-8">
+                  <select id="qos" class="form-control">
+                    <option value=0>0</option>
+                    <option value=1>1</option>
+                    <option value=2>2</option>
+                  </select>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="col-xs-6">
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <h3 class="panel-title">Subscribe MQTT Messages</h3>
+    </div>
+    <div class="panel-body">
+      <div class="col-xs-12">
+        <div class="row">
+          <div class="form-horizontal">
+            <div class="form-group">
+              <label class="control-label col-xs-4">Topic:</label>
+              <div class="col-xs-8">
+                <input id="subscribe_topic" class="form-control">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="control-label col-xs-4">Qos: </label>
+              <div class="col-xs-8">
+                <select id="subscribe_qos" class="form-control">
+                  <option value=0>0</option>
+                  <option value=1>1</option>
+                  <option value=2>2</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="col-xs-8 col-xs-offset-4">
+                <button id="subscribe" class="btn btn-primary">Subscribe</button>
+                <button id="unsubscribe" class="btn btn-default" style="display: none;">Unsubscribe</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="control-label col-xs-4">Messages:</label>
+              <div class="col-xs-8">
+                <textarea id="subscribe_messages" class="form-control" rows=10></textarea>
+              </div>
+              <label class="control-label col-xs-4">Security messages:</label>
+              <div class="col-xs-8">
+                <textarea id="security_messages" class="form-control" rows=10></textarea>
+              </div>
+              <label class="control-label col-xs-4">Ledstatus messages:</label>
+              <div class="col-xs-8">
+                <textarea id="ledstatus_messages" class="form-control" rows=10></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+-->
+{% endblock %}

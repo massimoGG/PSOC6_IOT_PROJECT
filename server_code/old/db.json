@@ -1,0 +1,134 @@
+{
+    "Clients": [
+        {
+            "psoc6-mqtt-client5634": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client75391": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client116399": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client5736": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client5716": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client243899": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client5926": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client143683": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client71399": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client75900": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client5727": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client5816": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client5700": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client5916": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client5717": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client149299": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        },
+        {
+            "psoc6-mqtt-client5726": {
+                "Subscriptions": [
+                    "ledstatus"
+                ]
+            }
+        }
+    ],
+    "Topics": [
+        {
+            "Temperature": ""
+        },
+        {
+            "Humidity": ""
+        },
+        {
+            "ledstatus": ""
+        }
+    ]
+}
